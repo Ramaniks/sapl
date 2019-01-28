@@ -18,7 +18,8 @@ from sapl.parlamentares.views import (CargoMesaCrud, ColigacaoCrud,
                                       insere_parlamentar_composicao,
                                       parlamentares_frente_selected,
                                       remove_parlamentar_composicao,
-                                      EditaNomePartidoView)
+                                      EditaNomePartidoView,
+                                      lista_parlamentares_partido)
 
 from .apps import AppConfig
 
@@ -63,6 +64,8 @@ urlpatterns = [
     url(r'^sistema/parlamentar/partido/', include(PartidoCrud.get_urls())),
     url(r'^sistema/parlamentar/partido/(?P<pk>\d+)/altera-nome',
         EditaNomePartidoView.as_view(), name='altera_nome_partido'),
+    url(r'^sistema/parlamentar/partido/(?P<pk>\d+)/lista-parlamentares', 
+        lista_parlamentares_partido.as_view(), name='lista_parlamentares_partido'),
 
     url(r'^sistema/mesa-diretora/sessao-legislativa/',
         include(SessaoLegislativaCrud.get_urls())),
