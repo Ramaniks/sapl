@@ -53,7 +53,7 @@ RENAMING_IGNORED_FIELDS = [
     (NormaJuridica, {'texto_integral', 'data_ultima_atualizacao', 'assuntos'}),
     (Parlamentar, {
         'uf_residencia', 'municipio_residencia', 'cropping', 'fotografia'}),
-    (Partido, {'logo_partido', 'observacao'}),
+    (Partido, {'logo_partido', 'observacao', 'historico'}),
     (MateriaLegislativa, {
         'autores', 'anexadas', 'data_ultima_atualizacao', 'texto_original'}),
     (DocumentoAdministrativo, {
