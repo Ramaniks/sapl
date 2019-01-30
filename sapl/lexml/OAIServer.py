@@ -7,9 +7,14 @@ import oaipmh
 import oaipmh.metadata
 import oaipmh.server
 import oaipmh.error
+from django.urls import reverse
 
 from lxml import etree
 from lxml.builder import ElementMaker
+
+from sapl.base.models import CasaLegislativa, AppConfig
+from sapl.lexml.models import LexmlPublicador
+from sapl.norma.models import NormaJuridica
 
 
 class OAILEXML():
@@ -105,9 +110,10 @@ class OAIServer():
     def create_header(self, record):
         oai_id = self.get_oai_id(record['record']['id'])
         timestamp = record['record']['when_modified']
+        timestamp = timestamp.replace(tzinfo=None)
         sets = []
         deleted = record['record']['deleted']
-        return oaipmh.common.Header(oai_id, timestamp, sets, deleted)
+        return oaipmh.common.Header(None, oai_id, timestamp, sets, deleted)
 
 
     def listIdentifiers(self, metadata_prefix, dataset=None,
@@ -134,7 +140,7 @@ class OAIServer():
 
     def create_header_and_metadata(self, record):
         header = self.create_header(record)
-        metadata = oaipmh.common.Metadata(record['metadata'])
+        metadata = oaipmh.common.Metadata(None, record['metadata'])
         metadata.record = record
         return header, metadata
     
@@ -160,82 +166,61 @@ class OAIServer():
                               until_date=until,
                               identifier=identifier)
 
-    def get_nome_casa(self):
-        # TODO: recuperar do BD
-        return "Casa de teste"
-
-    def verifica_esfera_federacao(self):
-        """ Funcao para verificar a esfera da federacao
+    def monta_id(self, norma):
+        """ Funcao que monta o id do objeto do LexML
         """
-        nome_camara = self.get_nome_casa()
-        camara = [u'Câmara','Camara','camara',u'camara']
-        assembleia = [u'Assembléia','Assembleia','assembleia',u'assembléia']
 
-        # TODO: pegar espera de forma mais inteligente
-        if [tipo for tipo in camara if nome_camara.startswith(tipo)]:
-            return 'M'
-        elif [tipo for tipo in assembleia if nome_camara.startswith(tipo)]:
-            return 'E'
-        else:
-            return ''
+        casa = CasaLegislativa.objects.first()
 
-    def monta_id(self,cod_norma):
-        ''' Funcao que monta o id do objeto do LexML
-        '''
-
-        #consultas
-        consulta = self.zsql.lexml_normas_juridicas_obter_zsql(cod_norma=cod_norma)
-        if consulta:
-            consulta = self.zsql.lexml_normas_juridicas_obter_zsql(cod_norma=cod_norma)[0]
-            
-            end_web_casa = self.sapl_documentos.props_sapl.end_web_casa
-            sgl_casa = self.sapl_documentos.props_sapl.sgl_casa.lower()
+        if norma:
+            end_web_casa = casa.endereco_web
+            sgl_casa = casa.sigla.lower()
             num = len(end_web_casa.split('.'))
             dominio = '.'.join(end_web_casa.split('.')[1:num])
             
-            prefixo_oai = '%s.%s:sapl/' % (sgl_casa,dominio)
-            numero_interno = consulta.num_norma
-            tipo_norma = consulta.voc_lexml
-            ano_norma = consulta.ano_norma
+            prefixo_oai = '%s.%s:sapl/' % (sgl_casa, dominio)
+            numero_interno = norma.numero
+            tipo_norma = norma.tipo.equivalente_lexml
+            ano_norma = norma.ano
             
-            identificador = '%s%s;%s;%s' % (prefixo_oai,tipo_norma,ano_norma,numero_interno)
+            identificador = '%s%s;%s;%s' % (prefixo_oai, tipo_norma, ano_norma, numero_interno)
         
             return identificador
         else:
             return None
         
-    def monta_urn(self, cod_norma):
-        ''' Funcao que monta a URN do LexML
-        '''
+    def monta_urn(self, norma):
+        """ Funcao que monta a URN do LexML
+        """
+        casa = CasaLegislativa.objects.first()
+        appconfig = AppConfig.objects.first()
+        esfera = appconfig.esfera_federacao
 
-        esfera = self.verifica_esfera_federacao()
-        consulta = self.zsql.lexml_normas_juridicas_obter_zsql(cod_norma=cod_norma)
-        if consulta:
-            consulta = self.zsql.lexml_normas_juridicas_obter_zsql(cod_norma=cod_norma)[0]
-            url = self.portal_url() + '/consultas/norma_juridica/norma_juridica_mostrar_proc?cod_norma=' + str(cod_norma)
-            urn='urn:lex:br;'
-            esferas = {'M':'municipal','E':'estadual'}
-            
-            localidade = self.zsql.localidade_obter_zsql(cod_localidade = self.sapl_documentos.props_sapl.cod_localidade)
-            municipio = localidade[0].nom_localidade_pesq.lower()
-            for i in re.findall('\s',municipio):
+        if norma:
+            url = self.config['base_url'] + reverse('sapl.norma:normajuridica_detail', kwargs={'pk': norma.numero})
+            # url = self.portal_url() + '/consultas/norma_juridica/norma_juridica_mostrar_proc?cod_norma=' + str(numero)
+
+            urn = 'urn:lex:br;'
+            esferas = {'M': 'municipal', 'E': 'estadual'}
+
+            municipio = casa.municipio.lower()
+            for i in re.findall('\s', municipio):
                 municipio = municipio.replace(i, '.')
             
             # solucao temporaria
-            if re.search( '\.de\.', municipio):
-                municipio = [municipio.replace(i, '.') for i in re.findall( '\.de\.', municipio)][0]
-            if re.search( '\.da\.', municipio):
-                municipio = [municipio.replace(i, '.') for i in re.findall( '\.da\.', municipio)][0]
-            if re.search( '\.das\.', municipio):
-                municipio = [municipio.replace(i, '.') for i in re.findall( '\.das\.', municipio)][0]
-            if re.search( '\.do\.', municipio):
-                municipio = [municipio.replace(i, '.') for i in re.findall( '\.do\.', municipio)][0]
-            if re.search( '\.dos\.', municipio):
-                municipio = [municipio.replace(i, '.') for i in re.findall( '\.dos\.', municipio)][0]
+            if re.search('\.de\.', municipio):
+                municipio = [municipio.replace(i, '.') for i in re.findall('\.de\.', municipio)][0]
+            if re.search('\.da\.', municipio):
+                municipio = [municipio.replace(i, '.') for i in re.findall('\.da\.', municipio)][0]
+            if re.search('\.das\.', municipio):
+                municipio = [municipio.replace(i, '.') for i in re.findall('\.das\.', municipio)][0]
+            if re.search('\.do\.', municipio):
+                municipio = [municipio.replace(i, '.') for i in re.findall('\.do\.', municipio)][0]
+            if re.search('\.dos\.', municipio):
+                municipio = [municipio.replace(i, '.') for i in re.findall('\.dos\.', municipio)][0]
 
-            sigla_uf=localidade[0].sgl_uf
-            uf = self.zsql.localidade_obter_zsql(sgl_uf=sigla_uf,tip_localidade='U')[0].nom_localidade_pesq.lower()
-            for i in re.findall('\s',uf):
+            uf = casa.municipio.lower()
+            for i in re.findall('\s', uf):
                 uf = uf.replace(i, '.')
             
             # solucao temporaria
@@ -250,42 +235,44 @@ class OAIServer():
             if re.search( '\.dos\.', uf):
                 uf = [uf.replace(i, '.') for i in re.findall( '\.dos\.', uf)][0]
 
-            if self.verifica_esfera_federacao() == 'M':
+            if appconfig.esfera_federacao == 'M':
                 urn += uf + ';'
                 urn += municipio + ':'
-            elif self.verifica_esfera_federacao() == 'E':
+            elif appconfig.esfera_federacao == 'E':
                 urn += uf + ':'
 
             if esfera == 'M':
-                if consulta.voc_lexml == 'regimento.interno' or consulta.voc_lexml == 'resolucao':
+                if norma.tipo.equivalente_lexml == 'regimento.interno' or norma.tipo.equivalente_lexml == 'resolucao':
                     urn += 'camara.municipal:'
                 else:
                     urn += esferas[esfera] + ':'
-            else:
+            elif esfera == 'E':
                 urn += esferas[esfera] + ':'
-
-            urn += consulta.voc_lexml + ':'
-
-            urn += self.pysc.port_to_iso_pysc(consulta.dat_norma) + ';'
-
-            if consulta.voc_lexml == 'lei.organica' or consulta.voc_lexml == 'constituicao':
-                urn += consulta.ano_norma
             else:
-                urn += consulta.num_norma
+                urn += ':'
 
-            if consulta.dat_vigencia and consulta.dat_publicacao:
+            urn += norma.tipo.equivalente_lexml + ':'
+
+            urn += norma.data.isoformat() + ';'
+
+            if norma.tipo.equivalente_lexml == 'lei.organica' or norma.tipo.equivalente_lexml == 'constituicao':
+                urn += norma.ano
+            else:
+                urn += norma.numero
+
+            if norma.data_vigencia and norma.data_publicacao:
                 urn += '@'
-                urn += self.pysc.port_to_iso_pysc(consulta.dat_vigencia)
+                urn += norma.data_vigencia.isoformat()
                 urn += ';publicacao;'
-                urn += self.pysc.port_to_iso_pysc(consulta.dat_publicacao)
-            elif consulta.dat_publicacao:
+                urn += norma.data_publicacao.isoformat()
+            elif norma.data_publicacao:
                 urn += '@'
-                urn += 'inicio.vigencia;publicacao;' + self.pysc.port_to_iso_pysc(consulta.dat_publicacao)
+                urn += 'inicio.vigencia;publicacao;' + norma.data_publicacao.isoformat()
 #            else:
 #                urn += 'inicio.vigencia;publicacao;'
 #                
-#            if consulta.dat_publicacao:
-#                urn += self.pysc.port_to_iso_pysc(consulta.dat_publicacao)
+#            if norma.data_publicacao:
+#                urn += norma.data_publicacao.isoformat()
                 
             return urn
         else:
@@ -294,7 +281,9 @@ class OAIServer():
     def oai_query(self, offset=0, batch_size=20,
                   from_date=None, until_date=None, identifier=None):
 
-        esfera = self.verifica_esfera_federacao()
+        appconfig = AppConfig.objects.first()
+
+        esfera = appconfig.esfera_federacao
 
         batch_size = 0 if batch_size < 0 else batch_size    
 
@@ -305,18 +294,20 @@ class OAIServer():
         if not from_date:
             from_date = ''
 
-        normas = self.zsql.lexml_normas_juridicas_obter_zsql(from_date=from_date,
-                                                             until_date=until_date,
-                                                             offset=offset,
-                                                             batch_size=batch_size,
-                                                             num_norma=identifier,
-                                                             tip_esfera_federacao=esfera)
+        # normas = self.zsql.lexml_normas_juridicas_obter_zsql(from_date=from_date,
+        #                                                      until_date=until_date,
+        #                                                      offset=offset,
+        #                                                      batch_size=batch_size,
+        #                                                      num_norma=identifier,
+        #                                                      tip_esfera_federacao=esfera)
+        # TODO: passar parametros
+        normas = NormaJuridica.objects.select_related('tipo').all()[:5]
+
         for norma in normas:
-            resultado = {}            
-            cod_norma = norma.cod_norma
-            identificador = self.monta_id(cod_norma)
-            urn = self.monta_urn(cod_norma)
-            xml_lexml = self.monta_xml(urn,cod_norma)
+            resultado = {}
+            identificador = self.monta_id(norma)
+            urn = self.monta_urn(norma)
+            xml_lexml = self.monta_xml(urn, norma)
             
             resultado['tx_metadado_xml'] = xml_lexml
             #resultado['id_registro_item'] = resultado['name']
@@ -328,29 +319,29 @@ class OAIServer():
             resultado['id'] = identificador
             resultado['when_modified'] = norma.timestamp
             resultado['deleted'] = 0
-            if norma.ind_excluido == 1:
-                resultado['deleted'] = 1
-#                resultado['cd_status'] = 'D'
+#             if norma.ind_excluido == 1:
+#                 resultado['deleted'] = 1
+# #                resultado['cd_status'] = 'D'
             yield {'record': resultado,
 #                   'sets': ['person'],
                    'metadata': resultado['tx_metadado_xml'],
 #                   'assets':{}
                    }
 
-    def monta_xml(self,urn,cod_norma):
+    def monta_xml(self, urn, norma):
         #criacao do xml
 
+        casa = CasaLegislativa.objects.first()
+
         # consultas
-        consulta = self.zsql.lexml_normas_juridicas_obter_zsql(cod_norma=cod_norma)
-        publicador = self.zsql.lexml_publicador_obter_zsql()
-        if consulta and publicador:
-            consulta = self.zsql.lexml_normas_juridicas_obter_zsql(cod_norma=cod_norma)[0]
-            publicador = self.zsql.lexml_publicador_obter_zsql()[0]
-        
-            url = self.portal_url() + '/consultas/norma_juridica/norma_juridica_mostrar_proc?cod_norma=' + str(cod_norma)
+        publicador = LexmlPublicador.objects.first()
+        if norma and publicador:
+
+            url = self.config['base_url'] + reverse('sapl.norma:normajuridica_detail', kwargs={'pk': norma.numero})
+            # url = self.portal_url() + '/consultas/norma_juridica/norma_juridica_mostrar_proc?cod_norma=' + str(cod_norma)
             
             E = ElementMaker()
-            LEXML = ElementMaker(namespace=self.ns['lexml'],nsmap=self.ns)
+            LEXML = ElementMaker(namespace=self.ns['lexml'], nsmap=self.ns)
             
             oai_lexml = LEXML.LexML()
             
@@ -361,48 +352,74 @@ class OAIServer():
             id_publicador = str(publicador.id_publicador)
 
             # montagem da epigrafe
-            localidade = self.zsql.localidade_obter_zsql(cod_localidade = self.sapl_documentos.props_sapl.cod_localidade)[0].nom_localidade
-            sigla_uf = self.zsql.localidade_obter_zsql(cod_localidade = self.sapl_documentos.props_sapl.cod_localidade)[0].sgl_uf
-            if consulta.voc_lexml == 'lei.organica':
-                epigrafe = u'%s de %s - %s, de %s' % (consulta.des_tipo_norma, localidade,sigla_uf, consulta.ano_norma)
-            elif consulta.voc_lexml == 'constituicao':
-                epigrafe = u'%s do Estado de %s, de %s' % (consulta.des_tipo_norma, localidade, consulta.ano_norma)
+            localidade = casa.municipio
+            sigla_uf = casa.uf
+            if norma.tipo.equivalente_lexml == 'lei.organica':
+                epigrafe = u'%s de %s - %s, de %s' % (norma.tipo.descricao, localidade, sigla_uf, norma.ano)
+            elif norma.tipo.equivalente_lexml == 'constituicao':
+                epigrafe = u'%s do Estado de %s, de %s' % (norma.tipo.descricao, localidade, norma.ano)
             else:
-                epigrafe = u'%s n° %s,  de %s' % (consulta.des_tipo_norma, consulta.num_norma, self.pysc.data_converter_por_extenso_pysc(consulta.dat_norma))
+                epigrafe = u'%s n° %s,  de %s' % (norma.tipo.descricao, norma.numero, self.data_converter_por_extenso_pysc(norma.data)) #TODO: pegar isso
             
-            ementa = consulta.txt_ementa
+            ementa = norma.ementa
             
-            indexacao = consulta.txt_indexacao
-            
+            indexacao = norma.indexacao
+
             formato = 'text/html'
-            id_documento = u'%s_%s' % (str(cod_norma), self.sapl_documentos.norma_juridica.nom_documento)
-            if hasattr(self.sapl_documentos.norma_juridica,id_documento):
-                arquivo = getattr(self.sapl_documentos.norma_juridica,id_documento) 
-                url_conteudo = arquivo.absolute_url()
-                formato = arquivo.content_type
-                if formato == 'application/octet-stream':
-                    formato = 'application/msword'
-                if formato == 'image/ipeg':
-                    formato = 'image/jpeg'
-            
+            # TODO: recuperar formato correto do arquivo
+            # id_documento = u'%s_%s' % (norma.numero, self.sapl_documentos.norma_juridica.nom_documento)
+            # if hasattr(self.sapl_documentos.norma_juridica, id_documento):
+            #     arquivo = getattr(self.sapl_documentos.norma_juridica, id_documento)
+            #     url_conteudo = arquivo.absolute_url()
+            #     formato = arquivo.content_type
+            #     if formato == 'application/octet-stream':
+            #         formato = 'application/msword'
+            #     if formato == 'image/ipeg':
+            #         formato = 'image/jpeg'
+            # else:
+            #     url_conteudo = self.portal_url() + '/consultas/norma_juridica/norma_juridica_mostrar_proc?cod_norma=' + str(cod_norma)
+
+            if norma.texto_integral:
+                url_conteudo = self.config['base_url'] + norma.texto_integral.url
+                formato = 'application/pdf' # TODO: PEGAR O FORMATO DO ARQUIVO
             else:
-                url_conteudo = self.portal_url() + '/consultas/norma_juridica/norma_juridica_mostrar_proc?cod_norma=' + str(cod_norma)
-            
-            item_conteudo = E.Item(url_conteudo,formato=formato, idPublicador=id_publicador,tipo='conteudo')
+                url_conteudo = self.config['base_url'] + reverse('sapl.norma:normajuridica_detail', kwargs={'pk': norma.numero})
+
+            item_conteudo = E.Item(url_conteudo, formato=formato, idPublicador=id_publicador, tipo='conteudo')
             oai_lexml.append(item_conteudo)
             
-            item_metadado = E.Item(url,formato='text/html', idPublicador=id_publicador,tipo='metadado')
+            item_metadado = E.Item(url, formato='text/html', idPublicador=id_publicador, tipo='metadado')
             oai_lexml.append(item_metadado)
             
             documento_individual = E.DocumentoIndividual(urn)
             oai_lexml.append(documento_individual)
-            oai_lexml.append(E.Epigrafe(epigrafe.decode('iso-8859-1')))
-            oai_lexml.append(E.Ementa(ementa.decode('iso-8859-1')))
+            oai_lexml.append(E.Epigrafe(epigrafe)) # TODO: epigrafe.decode('iso-8859-1')
+            oai_lexml.append(E.Ementa(ementa))  # TODO: ementa.decode('iso-8859-1')
             if indexacao:
                 oai_lexml.append(E.Indexacao(indexacao.decode('iso-8859-1')))
             return etree.tostring(oai_lexml)
         else:
             return None
+
+    def data_converter_por_extenso_pysc(self, data):
+        """
+          Funcaoo: Converter a data do formato DD/MM/AAAA para
+                  o formato AAAA/MM/DD, e depois converter em dia da semana
+                  Ex: sexta-feira.
+
+          Argumento: Data a ser convertida.
+
+          Retorno: Dia da semana.
+        """
+
+        meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro',
+                 'Novembro', 'Dezembro']
+        data = data.strftime('%d-%m-%Y')
+        if data != '':
+            mes = int(data[3:5])
+            return data[0:2] + " de " + meses[int(mes - 1)] + " de " + data[6:]
+        else:
+            return ''
 
 
 def OAIServerFactory(config={}):
@@ -423,7 +440,7 @@ def config():
     config = {}
     config['titulo'] = 'cocalzinho' # self.get_nome_repositorio()
     config['email'] = 'camara@cocalzinho.gov' # self.get_email()
-    config['base_url'] = 'wwww.aleluia.com' # self.get_base_url()
+    config['base_url'] = 'https://sapl.guatapara.sp.leg.br' # self.get_base_url()
     config['metadata_prefixes'] = ['oai_lexml',]
     config['descricao'] = 'ficticia' # self.get_descricao_casa()
     config['batch_size'] = 10 # self.get_batch_size()
@@ -432,9 +449,18 @@ def config():
     config['base_asset_path']=None
     return config
 
+
 if __name__ == '__main__':
+    """
+        Para executar localmente (estando no diretório raiz):
+        
+        $ ./manage.py shell_plus
+        
+        Executar comando        
+        %run sapl/lexml/OAIServer.py
+    """
     oai_server = OAIServerFactory(config())
-    r = oai_server.handleRequest({'verb':'ListRecords',
-                                  'metadataPrefix':'oai_lexml'
+    r = oai_server.handleRequest({'verb': 'ListRecords',
+                                  'metadataPrefix': 'oai_lexml'
                                   })
-    print(r)
+    print(r.decode('UTF-8'))
