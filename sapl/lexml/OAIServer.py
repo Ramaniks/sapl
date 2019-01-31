@@ -1,14 +1,11 @@
-
-import os
 import re
 from datetime import datetime
 
 import oaipmh
+import oaipmh.error
 import oaipmh.metadata
 import oaipmh.server
-import oaipmh.error
 from django.urls import reverse
-
 from lxml import etree
 from lxml.builder import ElementMaker
 
@@ -25,8 +22,8 @@ class OAILEXML():
 
     def __init__(self, prefix):
         self.prefix = prefix
-        self.ns = {'oai_lexml': 'http://www.lexml.gov.br/oai_lexml',}
-        self.schemas = {'oai_lexml': 'http://projeto.lexml.gov.br/esquemas/oai_lexml.xsd'}   
+        self.ns = {'oai_lexml': 'http://www.lexml.gov.br/oai_lexml', }
+        self.schemas = {'oai_lexml': 'http://projeto.lexml.gov.br/esquemas/oai_lexml.xsd'}
 
     def get_namespace(self):
         return self.ns[self.prefix]
@@ -49,8 +46,8 @@ class OAIServer():
 
     XSI_NS = 'http://www.w3.org/2001/XMLSchema-instance'
     ns = {'lexml': 'http://www.lexml.gov.br/oai_lexml'}
-    schema = {'oai_lexml': 'http://projeto.lexml.gov.br/esquemas/oai_lexml.xsd'}    
-    
+    schema = {'oai_lexml': 'http://projeto.lexml.gov.br/esquemas/oai_lexml.xsd'}
+
     def __init__(self, config={}):
         self.config = config
 
@@ -100,12 +97,11 @@ class OAIServer():
             result.append((prefix, schema, ns))
         return result
 
-
     def listRecords(self, metadataPrefix, set=None, from_=None, until=None, cursor=0, batch_size=10):
         self.check_metadata_prefix(metadataPrefix)
         for record in self.list_query(set, from_, until, cursor, batch_size):
             header, metadata = self.create_header_and_metadata(record)
-            yield header, metadata, None # NONE?????
+            yield header, metadata, None  # NONE?????
 
     def create_header(self, record):
         oai_id = self.get_oai_id(record['record']['id'])
@@ -115,16 +111,14 @@ class OAIServer():
         deleted = record['record']['deleted']
         return oaipmh.common.Header(None, oai_id, timestamp, sets, deleted)
 
-
-    def listIdentifiers(self, metadata_prefix, dataset=None,
-                         start=None, end=None, cursor=0, batch_size=10):
+    def listIdentifiers(self, metadata_prefix, dataset=None, start=None, end=None, cursor=0, batch_size=10):
         self.check_metadata_prefix(metadata_prefix)
         for record in self.list_query(dataset, start, end, cursor, batch_size):
             yield self.create_header(record)
 
     def getRecord(self, metadata_prefix, identifier):
         header = None
-        metadata = None       
+        metadata = None
         self.check_metadata_prefix(metadata_prefix)
         for record in self.list_query(identifier=identifier):
             header, metadata = self.create_header_and_metadata(record)
@@ -143,23 +137,21 @@ class OAIServer():
         metadata = oaipmh.common.Metadata(None, record['metadata'])
         metadata.record = record
         return header, metadata
-    
-    def list_query(self, dataset=None, from_=None, until=None, 
-                   cursor=0, batch_size=10, identifier=None):
 
+    def list_query(self, dataset=None, from_=None, until=None, cursor=0, batch_size=10, identifier=None):
         if identifier:
             identifier = self.get_internal_id(identifier)
         else:
             identifier = ''
         if dataset:
             dataset = self.get_internal_set_id(dataset)
-        
+
         # TODO: verificar se a data eh UTC
         now = datetime.now()
         # until nunca deve ser no futuro
         if not until or until > now:
             until = now
-            
+
         return self.oai_query(offset=cursor,
                               batch_size=batch_size,
                               from_date=from_,
@@ -177,18 +169,18 @@ class OAIServer():
             sgl_casa = casa.sigla.lower()
             num = len(end_web_casa.split('.'))
             dominio = '.'.join(end_web_casa.split('.')[1:num])
-            
+
             prefixo_oai = '%s.%s:sapl/' % (sgl_casa, dominio)
             numero_interno = norma.numero
             tipo_norma = norma.tipo.equivalente_lexml
             ano_norma = norma.ano
-            
+
             identificador = '%s%s;%s;%s' % (prefixo_oai, tipo_norma, ano_norma, numero_interno)
-        
+
             return identificador
         else:
             return None
-        
+
     def monta_urn(self, norma):
         """ Funcao que monta a URN do LexML
         """
@@ -206,7 +198,7 @@ class OAIServer():
             municipio = casa.municipio.lower()
             for i in re.findall('\s', municipio):
                 municipio = municipio.replace(i, '.')
-            
+
             # solucao temporaria
             if re.search('\.de\.', municipio):
                 municipio = [municipio.replace(i, '.') for i in re.findall('\.de\.', municipio)][0]
@@ -222,18 +214,18 @@ class OAIServer():
             uf = casa.municipio.lower()
             for i in re.findall('\s', uf):
                 uf = uf.replace(i, '.')
-            
+
             # solucao temporaria
-            if re.search( '\.de\.', uf):
-                uf = [uf.replace(i, '.') for i in re.findall( '\.de\.', uf)][0]
-            if re.search( '\.da\.', uf):
-                uf = [uf.replace(i, '.') for i in re.findall( '\.da\.', uf)][0]
-            if re.search( '\.das\.', uf):
-                uf = [uf.replace(i, '.') for i in re.findall( '\.das\.', uf)][0]
-            if re.search( '\.do\.', uf):
-                uf = [uf.replace(i, '.') for i in re.findall( '\.do\.', uf)][0]
-            if re.search( '\.dos\.', uf):
-                uf = [uf.replace(i, '.') for i in re.findall( '\.dos\.', uf)][0]
+            if re.search('\.de\.', uf):
+                uf = [uf.replace(i, '.') for i in re.findall('\.de\.', uf)][0]
+            if re.search('\.da\.', uf):
+                uf = [uf.replace(i, '.') for i in re.findall('\.da\.', uf)][0]
+            if re.search('\.das\.', uf):
+                uf = [uf.replace(i, '.') for i in re.findall('\.das\.', uf)][0]
+            if re.search('\.do\.', uf):
+                uf = [uf.replace(i, '.') for i in re.findall('\.do\.', uf)][0]
+            if re.search('\.dos\.', uf):
+                uf = [uf.replace(i, '.') for i in re.findall('\.dos\.', uf)][0]
 
             if appconfig.esfera_federacao == 'M':
                 urn += uf + ';'
@@ -268,24 +260,22 @@ class OAIServer():
             elif norma.data_publicacao:
                 urn += '@'
                 urn += 'inicio.vigencia;publicacao;' + norma.data_publicacao.isoformat()
-#            else:
-#                urn += 'inicio.vigencia;publicacao;'
-#                
-#            if norma.data_publicacao:
-#                urn += norma.data_publicacao.isoformat()
-                
+            #            else:
+            #                urn += 'inicio.vigencia;publicacao;'
+            #
+            #            if norma.data_publicacao:
+            #                urn += norma.data_publicacao.isoformat()
+
             return urn
         else:
             return None
 
-    def oai_query(self, offset=0, batch_size=20,
-                  from_date=None, until_date=None, identifier=None):
-
+    def oai_query(self, offset=0, batch_size=20, from_date=None, until_date=None, identifier=None):
         appconfig = AppConfig.objects.first()
 
         esfera = appconfig.esfera_federacao
 
-        batch_size = 0 if batch_size < 0 else batch_size    
+        batch_size = 0 if batch_size < 0 else batch_size
 
         # garante que a data 'until'(ate) esteja setada, e nao no futuro
         if not until_date or until_date > datetime.now():
@@ -308,28 +298,28 @@ class OAIServer():
             identificador = self.monta_id(norma)
             urn = self.monta_urn(norma)
             xml_lexml = self.monta_xml(urn, norma)
-            
+
             resultado['tx_metadado_xml'] = xml_lexml
-            #resultado['id_registro_item'] = resultado['name']
-            #del resultado['name']
-            #record['sets'] = record['sets'].strip().split(' ')
-            #if resultado['sets'] == [u'']:
+            # resultado['id_registro_item'] = resultado['name']
+            # del resultado['name']
+            # record['sets'] = record['sets'].strip().split(' ')
+            # if resultado['sets'] == [u'']:
             #    resultado['sets'] = []
             resultado['cd_status'] = 'N'
             resultado['id'] = identificador
             resultado['when_modified'] = norma.timestamp
             resultado['deleted'] = 0
-#             if norma.ind_excluido == 1:
-#                 resultado['deleted'] = 1
-# #                resultado['cd_status'] = 'D'
+            #             if norma.ind_excluido == 1:
+            #                 resultado['deleted'] = 1
+            # #                resultado['cd_status'] = 'D'
             yield {'record': resultado,
-#                   'sets': ['person'],
+                   #                   'sets': ['person'],
                    'metadata': resultado['tx_metadado_xml'],
-#                   'assets':{}
+                   #                   'assets':{}
                    }
 
     def monta_xml(self, urn, norma):
-        #criacao do xml
+        # criacao do xml
 
         casa = CasaLegislativa.objects.first()
 
@@ -339,16 +329,16 @@ class OAIServer():
 
             url = self.config['base_url'] + reverse('sapl.norma:normajuridica_detail', kwargs={'pk': norma.numero})
             # url = self.portal_url() + '/consultas/norma_juridica/norma_juridica_mostrar_proc?cod_norma=' + str(cod_norma)
-            
+
             E = ElementMaker()
             LEXML = ElementMaker(namespace=self.ns['lexml'], nsmap=self.ns)
-            
+
             oai_lexml = LEXML.LexML()
-            
+
             oai_lexml.attrib['{%s}schemaLocation' % self.XSI_NS] = '%s %s' % (
-                        'http://www.lexml.gov.br/oai_lexml',
-                        'http://projeto.lexml.gov.br/esquemas/oai_lexml.xsd')
-            
+                'http://www.lexml.gov.br/oai_lexml',
+                'http://projeto.lexml.gov.br/esquemas/oai_lexml.xsd')
+
             id_publicador = str(publicador.id_publicador)
 
             # montagem da epigrafe
@@ -359,10 +349,11 @@ class OAIServer():
             elif norma.tipo.equivalente_lexml == 'constituicao':
                 epigrafe = u'%s do Estado de %s, de %s' % (norma.tipo.descricao, localidade, norma.ano)
             else:
-                epigrafe = u'%s n° %s,  de %s' % (norma.tipo.descricao, norma.numero, self.data_converter_por_extenso_pysc(norma.data)) #TODO: pegar isso
-            
+                epigrafe = u'%s n° %s,  de %s' % (norma.tipo.descricao, norma.numero,
+                                                  self.data_converter_por_extenso_pysc(norma.data))  # TODO: pegar isso
+
             ementa = norma.ementa
-            
+
             indexacao = norma.indexacao
 
             formato = 'text/html'
@@ -381,19 +372,20 @@ class OAIServer():
 
             if norma.texto_integral:
                 url_conteudo = self.config['base_url'] + norma.texto_integral.url
-                formato = 'application/pdf' # TODO: PEGAR O FORMATO DO ARQUIVO
+                formato = 'application/pdf'  # TODO: PEGAR O FORMATO DO ARQUIVO
             else:
-                url_conteudo = self.config['base_url'] + reverse('sapl.norma:normajuridica_detail', kwargs={'pk': norma.numero})
+                url_conteudo = self.config['base_url'] + reverse('sapl.norma:normajuridica_detail',
+                                                                 kwargs={'pk': norma.numero})
 
             item_conteudo = E.Item(url_conteudo, formato=formato, idPublicador=id_publicador, tipo='conteudo')
             oai_lexml.append(item_conteudo)
-            
+
             item_metadado = E.Item(url, formato='text/html', idPublicador=id_publicador, tipo='metadado')
             oai_lexml.append(item_metadado)
-            
+
             documento_individual = E.DocumentoIndividual(urn)
             oai_lexml.append(documento_individual)
-            oai_lexml.append(E.Epigrafe(epigrafe)) # TODO: epigrafe.decode('iso-8859-1')
+            oai_lexml.append(E.Epigrafe(epigrafe))  # TODO: epigrafe.decode('iso-8859-1')
             oai_lexml.append(E.Ementa(ementa))  # TODO: ementa.decode('iso-8859-1')
             if indexacao:
                 oai_lexml.append(E.Indexacao(indexacao.decode('iso-8859-1')))
@@ -428,25 +420,26 @@ def OAIServerFactory(config={}):
     for prefix in config['metadata_prefixes']:
         metadata_registry = oaipmh.metadata.MetadataRegistry()
         metadata_registry.registerWriter(prefix, OAILEXML(prefix))
-            
+
     return oaipmh.server.BatchingServer(
         OAIServer(config),
         metadata_registry=metadata_registry,
         resumption_batch_size=config['batch_size']
-        )
+    )
+
 
 # TODO: RECUPERAR DA BASE DE DADOS
 def config():
     config = {}
-    config['titulo'] = 'cocalzinho' # self.get_nome_repositorio()
-    config['email'] = 'camara@cocalzinho.gov' # self.get_email()
-    config['base_url'] = 'https://sapl.guatapara.sp.leg.br' # self.get_base_url()
-    config['metadata_prefixes'] = ['oai_lexml',]
-    config['descricao'] = 'ficticia' # self.get_descricao_casa()
-    config['batch_size'] = 10 # self.get_batch_size()
+    config['titulo'] = 'cocalzinho'  # self.get_nome_repositorio()
+    config['email'] = 'camara@cocalzinho.gov'  # self.get_email()
+    config['base_url'] = 'https://sapl.guatapara.sp.leg.br'  # self.get_base_url()
+    config['metadata_prefixes'] = ['oai_lexml', ]
+    config['descricao'] = 'ficticia'  # self.get_descricao_casa()
+    config['batch_size'] = 10  # self.get_batch_size()
     config['content_type'] = None,
     config['delay'] = 0,
-    config['base_asset_path']=None
+    config['base_asset_path'] = None
     return config
 
 
