@@ -42,7 +42,7 @@
       {% for o in ordem_dia %}
         <tr class="{% if o.tipo_votacao == 1 %}Simbolica{% else %}Nominal{% endif %}"  {% if o.tipo_votacao == 2 %} style="display:none;" {% endif %}>
           <td>
-            <input type="checkbox" name="marcadas_{{o.tipo_votacao}}" id="{{o.id}}" value="{{o.id}}" {% if check %} checked {% endif %}>
+            <input type="checkbox" class="marcadas_1" name="marcadas_{{o.tipo_votacao}}" id="{{o.id}}" value="{{o.id}}" {% if check %} checked {% endif %}>
             <strong><a href="{% url 'sapl.materia:materialegislativa_detail' o.id %}">{{o.materia.tipo.sigla}} {{o.materia.numero}}/{{o.materia.ano}} - {{o.materia.tipo}}</strong></a></br>
             {% if o.materia.numeracao_set.last %}
               <strong>Processo:</strong> &nbsp; {{o.materia.numeracao_set.last}}</br>
@@ -92,7 +92,7 @@
 {% block extra_js %}
 	<script>
     $(document).ready(function(){
-      checa_tipo_votacao();
+      alteraTipoVotacao();
       $('#tipo_votacao_1').prop('checked', true)
     });
 
@@ -103,48 +103,45 @@
 	</script>
 
   <script language="JavaScript">
-		function checkAll(elem) {
-      let checkboxes = document.getElementsByName('marcadas_1');
-      if (elem.checked) {
-         for (let i = 0; i < checkboxes.length; i++) {
-             if (checkboxes[i].type == 'checkbox') {
-                 checkboxes[i].checked = true;
-             }
-         }
-     } else {
-         for (let i = 0; i < checkboxes.length; i++) {
-             if (checkboxes[i].type == 'checkbox') {
-                 checkboxes[i].checked = false;
-             }
-         }
-     }
-
-      checkboxes = document.getElementsByName('marcadas_2');
-      if (elem.checked) {
-         for (let i = 0; i < checkboxes.length; i++) {
-             if (checkboxes[i].type == 'checkbox') {
-                 checkboxes[i].checked = true;
-             }
-         }
-     } else {
-         for (let i = 0; i < checkboxes.length; i++) {
-             if (checkboxes[i].type == 'checkbox') {
-                 checkboxes[i].checked = false;
-             }
-         }
-     }
-
-		}
     
-    function alteraTipoVotacao() {
-      $(".Simbolica").toggle();
-      $(".Nominal").toggle();
+		function checkAll(elem) {
+      console.log($('input[name=marcadas_1]'));
+      if(elem.checked){
+        //$('[name="marcadas_1"]').click(); 
+        $('input[name=marcadas_1]').attr('checked', true);
+      }else{
+        //$('[name="marcadas_1"]').prop('checked', false);
+        $('input[name=marcadas_1]').attr('checked', false);
+      }
 
-      checa_tipo_votacao();
-    }
+      /*
+      let checkboxes = document.getElementsByName('marcadas_1');
 
-    function checa_tipo_votacao(){
-      tipo_votacao = document.querySelector('input[name="tipo_votacao"]:checked').value;
+      for (let i = 0; i < checkboxes.length; i++) {
+        if (checkboxes[i].type == 'checkbox') {
+          checkboxes[i].checked = elem.checked; 
+        }
+      }
+
+      for (let i = 0; i < checkboxes.length; i++) {
+        if (checkboxes[i].type == 'checkbox') {
+          checkboxes[i].checked = elem.checked;
+        }
+      } */
+      
+		}
+
+    function alteraTipoVotacao(){
+      tipo_votacao = $('input[name=tipo_votacao]:checked').val();
+      if(tipo_votacao==1){
+        $(".Simbolica").show();
+        $(".Nominal").hide();
+      }
+      else{
+        $(".Simbolica").hide();
+        $(".Nominal").show();
+      }
+
       numero_ordens = document.getElementsByName('marcadas_'+tipo_votacao).length;
 
       if(numero_ordens == 0){
@@ -163,10 +160,10 @@
       }
 
       if(tipo_votacao == "1"){
-        $('#form').attr("action", "{% url 'sapl.sessao:votacaoblocosimb' pk %}")
+        $('#form').attr("action", "{% url 'sapl.sessao:votacaoblocosimb' pk %}");
       }
       else{
-        $('#form').attr("action", "{% url 'sapl.sessao:votacaobloconom' pk %}")
+        $('#form').attr("action", "{% url 'sapl.sessao:votacaobloconom' pk %}");
       }
     }
 
