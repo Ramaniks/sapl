@@ -42,8 +42,8 @@
       {% for o in ordem_dia %}
         <tr class="{% if o.tipo_votacao == 1 %}Simbolica{% else %}Nominal{% endif %}"  {% if o.tipo_votacao == 2 %} style="display:none;" {% endif %}>
           <td>
-            <input type="checkbox" class="marcadas_1" name="marcadas_{{o.tipo_votacao}}" id="{{o.id}}" value="{{o.id}}" {% if check %} checked {% endif %}>
-            <strong><a href="{% url 'sapl.materia:materialegislativa_detail' o.id %}">{{o.materia.tipo.sigla}} {{o.materia.numero}}/{{o.materia.ano}} - {{o.materia.tipo}}</strong></a></br>
+            <input type="checkbox" name="marcadas_{{o.tipo_votacao}}" id="{{o.id}}" value="{{o.id}}" {% if check %} checked {% endif %}>
+            <strong><a href="{% url 'sapl.materia:materialegislativa_detail' o.id %}">{{o.materia.tipo.sigla}} {{o.materia.numero}}/{{o.materia.ano}} - {{o.materia.tipo}}</a></strong></br>
             {% if o.materia.numeracao_set.last %}
               <strong>Processo:</strong> &nbsp; {{o.materia.numeracao_set.last}}</br>
             {% endif %}
@@ -92,8 +92,17 @@
 {% block extra_js %}
 	<script>
     $(document).ready(function(){
-      alteraTipoVotacao();
-      $('#tipo_votacao_1').prop('checked', true)
+
+      tipo_votacao = $('input[name=tipo_votacao]:checked').val();
+      if(tipo_votacao==1){
+        $(".Simbolica").show();
+        $(".Nominal").hide();
+      }
+      else{
+        $(".Simbolica").hide();
+        $(".Nominal").show();
+      }
+
     });
 
 		$(window).on('beforeunload', function () {
@@ -105,13 +114,11 @@
   <script language="JavaScript">
     
 		function checkAll(elem) {
-      console.log($('input[name=marcadas_1]'));
       if(elem.checked){
-        //$('[name="marcadas_1"]').click(); 
+        //$('input[name=marcadas_1]').click(); 
         $('input[name=marcadas_1]').attr('checked', true);
-        $('input[name=marcadas_1]')[0].checked = true;
       }else{
-        //$('[name="marcadas_1"]').prop('checked', false);
+        //$('input[name=marcadas_1]').click(); 
         $('input[name=marcadas_1]').attr('checked', false);
       }
 
