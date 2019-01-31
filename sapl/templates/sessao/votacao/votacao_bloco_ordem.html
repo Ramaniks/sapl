@@ -109,6 +109,7 @@
       if(elem.checked){
         //$('[name="marcadas_1"]').click(); 
         $('input[name=marcadas_1]').attr('checked', true);
+        $('input[name=marcadas_1]')[0].checked = true;
       }else{
         //$('[name="marcadas_1"]').prop('checked', false);
         $('input[name=marcadas_1]').attr('checked', false);
