@@ -89,8 +89,8 @@
 
 {% endblock base_content %}
 
-{% block extra_js %}
-	<script>
+{% block extra_js %} 
+	<script> 
     $(document).ready(function(){
       checa_tipo_votacao();
       $('#tipo_votacao_1').prop('checked', true)
@@ -105,6 +105,7 @@
   <script language="JavaScript">
 		function checkAll(elem) {
       let checkboxes = document.getElementsByName('marcadas_1');
+      console.log(checkboxes.length);
       if (elem.checked) {
          for (let i = 0; i < checkboxes.length; i++) {
              if (checkboxes[i].type == 'checkbox') {
@@ -137,14 +138,21 @@
 		}
     
     function alteraTipoVotacao() {
-      $(".Simbolica").toggle();
-      $(".Nominal").toggle();
+      tipo_votacao = $('input[name=tipo_votacao]:checked').val();
+      if(tipo_votacao==1){
+        $(".Simbolica").show();
+        $(".Nominal").hide();
+      }
+      else{
+        $(".Simbolica").hide();
+        $(".Nominal").show();
+      }
 
       checa_tipo_votacao();
     }
 
     function checa_tipo_votacao(){
-      tipo_votacao = document.querySelector('input[name="tipo_votacao"]:checked').value;
+      tipo_votacao = $('input[name=tipo_votacao]:checked').val();
       numero_ordens = document.getElementsByName('marcadas_'+tipo_votacao).length;
 
       if(numero_ordens == 0){

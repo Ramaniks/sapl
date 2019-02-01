@@ -92,23 +92,12 @@
 {% block extra_js %}
 	<script>
     $(document).ready(function(){
-
-      tipo_votacao = $('input[name=tipo_votacao]:checked').val();
-      if(tipo_votacao==1){
-        $(".Simbolica").show();
-        $(".Nominal").hide();
-      }
-      else{
-        $(".Simbolica").hide();
-        $(".Nominal").show();
-      }
-
+      alteraTipoVotacao();
     });
 
-		$(window).on('beforeunload', function () {
+    $(window).on('beforeunload', function () {
       $("input[type=submit], input[type=button]").prop("disabled", "disabled");
     });
-
 	</script>
 
   <script language="JavaScript">
@@ -122,9 +111,9 @@
         $('input[name=marcadas_1]').attr('checked', false);
       }
 
-      /*
       let checkboxes = document.getElementsByName('marcadas_1');
-
+      console.log(checkboxes.length);
+      /*
       for (let i = 0; i < checkboxes.length; i++) {
         if (checkboxes[i].type == 'checkbox') {
           checkboxes[i].checked = elem.checked; 
