@@ -276,27 +276,21 @@ class OAIServer():
             return None
 
     def oai_query(self, offset=0, batch_size=20, from_date=None, until_date=None, identifier=None):
-        appconfig = AppConfig.objects.first()
+        esfera = self.get_esfera_federacao()
+        offset = 0 if (offset < 0) else None
+        batch_size = 10 if (batch_size < 10) else None
+        until_date = datetime.now() if (not until_date or (until_date > datetime.now())) else None
 
-        esfera = appconfig.esfera_federacao
+        kwargs = {'data__lte': until_date,
+                  'offset': offset,
+                  'batch_size': batch_size,
+                  'esfera_federacao': esfera
+                  }
+        pass
+        kwargs['data__gte'] = from_date if from_date else None
+        kwargs['numero'] = identifier if identifier else None
 
-        batch_size = 0 if batch_size < 0 else batch_size
-
-        # garante que a data 'until'(ate) esteja setada, e nao no futuro
-        if not until_date or until_date > datetime.now():
-            until_date = datetime.now()
-
-        if not from_date:
-            from_date = ''
-
-        # normas = self.zsql.lexml_normas_juridicas_obter_zsql(from_date=from_date,
-        #                                                      until_date=until_date,
-        #                                                      offset=offset,
-        #                                                      batch_size=batch_size,
-        #                                                      num_norma=identifier,
-        #                                                      tip_esfera_federacao=esfera)
-        # TODO: passar parametros
-        normas = NormaJuridica.objects.select_related('tipo').all()[:5]
+        normas = NormaJuridica.objects.select_related('tipo').filter(**kwargs)
 
         for norma in normas:
             resultado = {}
