@@ -428,7 +428,7 @@ def OAIServerFactory(config={}):
 
 
 # TODO: RECUPERAR DA BASE DE DADOS
-def config():
+def get_config():
     config = {}
     config['titulo'] = 'cocalzinho'  # self.get_nome_repositorio()
     config['email'] = 'camara@cocalzinho.gov'  # self.get_email()
@@ -451,7 +451,7 @@ if __name__ == '__main__':
         Executar comando        
         %run sapl/lexml/OAIServer.py
     """
-    oai_server = OAIServerFactory(config())
+    oai_server = OAIServerFactory(get_config())
     r = oai_server.handleRequest({'verb': 'ListRecords',
                                   'metadataPrefix': 'oai_lexml'
                                   })
