@@ -158,11 +158,14 @@ class OAIServer():
                               until_date=until,
                               identifier=identifier)
 
+    def get_casa_legislativa(self):
+        return CasaLegislativa.objects.first()
+
     def monta_id(self, norma):
         """ Funcao que monta o id do objeto do LexML
         """
 
-        casa = CasaLegislativa.objects.first()
+        casa = self.get_casa_legislativa()
 
         if norma:
             end_web_casa = casa.endereco_web
@@ -181,12 +184,15 @@ class OAIServer():
         else:
             return None
 
+    def get_esfera_federacao(self):
+        appconfig = AppConfig.objects.first()
+        return appconfig.esfera_federacao
+
     def monta_urn(self, norma):
         """ Funcao que monta a URN do LexML
         """
-        casa = CasaLegislativa.objects.first()
-        appconfig = AppConfig.objects.first()
-        esfera = appconfig.esfera_federacao
+        casa = self.get_casa_legislativa()
+        esfera = self.get_esfera_federacao()
 
         if norma:
             url = self.config['base_url'] + reverse('sapl.norma:normajuridica_detail', kwargs={'pk': norma.numero})
@@ -195,6 +201,7 @@ class OAIServer():
             urn = 'urn:lex:br;'
             esferas = {'M': 'municipal', 'E': 'estadual'}
 
+            # TODO: municipio e uf são a mesma coisa?
             municipio = casa.municipio.lower()
             for i in re.findall('\s', municipio):
                 municipio = municipio.replace(i, '.')
@@ -227,18 +234,16 @@ class OAIServer():
             if re.search('\.dos\.', uf):
                 uf = [uf.replace(i, '.') for i in re.findall('\.dos\.', uf)][0]
 
-            if appconfig.esfera_federacao == 'M':
+            if esfera == 'M':
                 urn += uf + ';'
                 urn += municipio + ':'
-            elif appconfig.esfera_federacao == 'E':
-                urn += uf + ':'
 
-            if esfera == 'M':
                 if norma.tipo.equivalente_lexml == 'regimento.interno' or norma.tipo.equivalente_lexml == 'resolucao':
                     urn += 'camara.municipal:'
                 else:
                     urn += esferas[esfera] + ':'
             elif esfera == 'E':
+                urn += uf + ':'
                 urn += esferas[esfera] + ':'
             else:
                 urn += ':'
@@ -321,7 +326,7 @@ class OAIServer():
     def monta_xml(self, urn, norma):
         # criacao do xml
 
-        casa = CasaLegislativa.objects.first()
+        casa = self.get_casa_legislativa()
 
         # consultas
         publicador = LexmlPublicador.objects.first()
