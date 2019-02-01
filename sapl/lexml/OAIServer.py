@@ -38,6 +38,24 @@ class OAILEXML():
         element.append(value)
 
 
+def recupera_norma(offset, batch_size, from_date, until_date, identifier, esfera):
+    kwargs = {'data__lte': until_date,
+              }
+
+    if from_date:
+        kwargs['data__gte'] = from_date
+
+    if identifier:
+        kwargs['numero'] = identifier
+
+    if esfera:
+        kwargs['esfera_federacao'] = esfera
+
+    normas = NormaJuridica.objects.select_related('tipo').filter(**kwargs)[offset:offset+batch_size]
+
+    return normas
+
+
 class OAIServer():
     """An OAI-2.0 compliant oai server.
     
@@ -276,21 +294,13 @@ class OAIServer():
             return None
 
     def oai_query(self, offset=0, batch_size=20, from_date=None, until_date=None, identifier=None):
+
         esfera = self.get_esfera_federacao()
-        offset = 0 if (offset < 0) else None
-        batch_size = 10 if (batch_size < 10) else None
-        until_date = datetime.now() if (not until_date or (until_date > datetime.now())) else None
+        offset = 0 if offset < 0 else offset
+        batch_size = 20 if batch_size < 0 else batch_size
+        until_date = datetime.now() if not until_date or until_date > datetime.now() else until_date
 
-        kwargs = {'data__lte': until_date,
-                  'offset': offset,
-                  'batch_size': batch_size,
-                  'esfera_federacao': esfera
-                  }
-        pass
-        kwargs['data__gte'] = from_date if from_date else None
-        kwargs['numero'] = identifier if identifier else None
-
-        normas = NormaJuridica.objects.select_related('tipo').filter(**kwargs)
+        normas = recupera_norma(offset, batch_size, from_date, until_date, identifier, esfera)
 
         for norma in normas:
             resultado = {}
