@@ -39,8 +39,7 @@ class OAILEXML():
 
 
 def recupera_norma(offset, batch_size, from_date, until_date, identifier, esfera):
-    kwargs = {'data__lte': until_date,
-              }
+    kwargs = {'data__lte': until_date}
 
     if from_date:
         kwargs['data__gte'] = from_date
@@ -51,9 +50,7 @@ def recupera_norma(offset, batch_size, from_date, until_date, identifier, esfera
     if esfera:
         kwargs['esfera_federacao'] = esfera
 
-    normas = NormaJuridica.objects.select_related('tipo').filter(**kwargs)[offset:offset+batch_size]
-
-    return normas
+    return NormaJuridica.objects.select_related('tipo').filter(**kwargs)[offset:offset + batch_size]
 
 
 class OAIServer():
@@ -437,12 +434,18 @@ def OAIServerFactory(config={}):
     )
 
 
+def get_base_url(url):
+    base_url = url[:url.find('/', 8)]
+
+    return base_url
+
+
 # TODO: RECUPERAR DA BASE DE DADOS
-def get_config():
+def get_config(url):
     config = {}
     config['titulo'] = 'cocalzinho'  # self.get_nome_repositorio()
     config['email'] = 'camara@cocalzinho.gov'  # self.get_email()
-    config['base_url'] = 'https://sapl.guatapara.sp.leg.br'  # self.get_base_url()
+    config['base_url'] = get_base_url(url)
     config['metadata_prefixes'] = ['oai_lexml', ]
     config['descricao'] = 'ficticia'  # self.get_descricao_casa()
     config['batch_size'] = 10  # self.get_batch_size()
