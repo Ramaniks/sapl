@@ -394,7 +394,7 @@ class OAIServer():
             oai_lexml.append(E.Epigrafe(epigrafe))  # TODO: epigrafe.decode('iso-8859-1')
             oai_lexml.append(E.Ementa(ementa))  # TODO: ementa.decode('iso-8859-1')
             if indexacao:
-                oai_lexml.append(E.Indexacao(indexacao.decode('iso-8859-1')))
+                oai_lexml.append(E.Indexacao(indexacao))  # TODO: indexacao.decode('iso-8859-1')
             return etree.tostring(oai_lexml)
         else:
             return None
@@ -464,7 +464,7 @@ if __name__ == '__main__':
         Executar comando        
         %run sapl/lexml/OAIServer.py
     """
-    oai_server = OAIServerFactory(get_config())
+    oai_server = OAIServerFactory(get_config('https://sapl.guatapara.sp.leg.br'))
     r = oai_server.handleRequest({'verb': 'ListRecords',
                                   'metadataPrefix': 'oai_lexml'
                                   })
