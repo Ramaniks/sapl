@@ -47,9 +47,9 @@ def recupera_norma(offset, batch_size, from_date, until_date, identifier, esfera
 
 
 class OAIServer():
-    """An OAI-2.0 compliant oai server.
-    
-    Underlying code is based on pyoai's oaipmh.server'
+    """
+        An OAI-2.0 compliant oai server.
+        Underlying code is based on pyoai's oaipmh.server'
     """
 
     XSI_NS = 'http://www.w3.org/2001/XMLSchema-instance'
@@ -66,7 +66,6 @@ class OAIServer():
     #                      internal_id,
     #                      asset['filename']))
 
-    # aparentemente nao utilizado
     def identify(self):
         result = oaipmh.common.Identify(
             repositoryName=self.config['titulo'],
@@ -154,6 +153,7 @@ class OAIServer():
             identifier = (lambda oai_id: int(oai_id.split('/').pop()))(identifier)  # Get internal id
         else:
             identifier = ''
+
         if dataset:
             dataset = (lambda oai_setspec_id: oai_setspec_id[4:])(dataset)  # Get internal set id
 
@@ -181,12 +181,12 @@ class OAIServer():
             num = len(end_web_casa.split('.'))
             dominio = '.'.join(end_web_casa.split('.')[1:num])
 
-            prefixo_oai = '%s.%s:sapl/' % (sgl_casa, dominio)
+            prefixo_oai = '{}.{}:sapl/'.format(casa.sigla.lower(), dominio)
             numero_interno = norma.numero
             tipo_norma = norma.tipo.equivalente_lexml
             ano_norma = norma.ano
 
-            identificador = '%s%s;%s;%s' % (prefixo_oai, tipo_norma, ano_norma, numero_interno)
+            identificador = '{}{};{};{}'.format(prefixo_oai, tipo_norma, ano_norma, numero_interno)
 
             return identificador
         else:
@@ -194,6 +194,7 @@ class OAIServer():
 
     def get_esfera_federacao(self):
         appconfig = AppConfig.objects.first()
+
         return appconfig.esfera_federacao
 
     def monta_urn(self, norma):
@@ -325,7 +326,6 @@ class OAIServer():
         # consultas
         publicador = LexmlPublicador.objects.first()
         if norma and publicador:
-
             url = self.config['base_url'] + reverse('sapl.norma:normajuridica_detail', kwargs={'pk': norma.numero})
             # url = self.portal_url() + '/consultas/norma_juridica/norma_juridica_mostrar_proc?cod_norma=' + str(cod_norma)
 
@@ -344,27 +344,27 @@ class OAIServer():
             localidade = casa.municipio
             sigla_uf = casa.uf
             if norma.tipo.equivalente_lexml == 'lei.organica':
-                epigrafe = u'%s de %s - %s, de %s' % (norma.tipo.descricao, localidade, sigla_uf, norma.ano)
+                epigrafe = '{} de {} - {}, de {}'.format(norma.tipo.descricao, localidade, sigla_uf, norma.ano)
             elif norma.tipo.equivalente_lexml == 'constituicao':
-                epigrafe = u'%s do Estado de %s, de %s' % (norma.tipo.descricao, localidade, norma.ano)
+                epigrafe = '{} do Estado de {}, de {}'.format(norma.tipo.descricao, localidade, norma.ano)
             else:
-                epigrafe = u'%s n° %s,  de %s' % (norma.tipo.descricao, norma.numero,
-                                                  self.data_converter_por_extenso_pysc(norma.data))  # TODO: pegar isso
+                epigrafe = '{} n° {},  de {}'.format(norma.tipo.descricao, norma.numero,
+                                                     self.data_converter_por_extenso_pysc(
+                                                         norma.data))  # TODO: pegar isso
 
             ementa = norma.ementa
-
             indexacao = norma.indexacao
 
             formato = 'text/html'
             # TODO: recuperar formato correto do arquivo
-            # id_documento = u'%s_%s' % (norma.numero, self.sapl_documentos.norma_juridica.nom_documento)
+            # id_documento = '{}_{}'.format(norma.numero, self.sapl_documentos.norma_juridica.nom_documento)
             # if hasattr(self.sapl_documentos.norma_juridica, id_documento):
             #     arquivo = getattr(self.sapl_documentos.norma_juridica, id_documento)
             #     url_conteudo = arquivo.absolute_url()
             #     formato = arquivo.content_type
             #     if formato == 'application/octet-stream':
             #         formato = 'application/msword'
-            #     if formato == 'image/ipeg':
+            #     elif formato == 'image/ipeg':
             #         formato = 'image/jpeg'
             # else:
             #     url_conteudo = self.portal_url() + '/consultas/norma_juridica/norma_juridica_mostrar_proc?cod_norma=' + str(cod_norma)
@@ -451,7 +451,7 @@ if __name__ == '__main__':
         Executar comando        
         %run sapl/lexml/OAIServer.py
     """
-    oai_server = OAIServerFactory(get_config('https://sapl.guatapara.sp.leg.br'))
+    oai_server = OAIServerFactory(get_config('http://127.0.0.1:8000/'))
     r = oai_server.handleRequest({'verb': 'ListRecords',
                                   'metadataPrefix': 'oai_lexml'
                                   })
