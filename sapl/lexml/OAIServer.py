@@ -72,11 +72,14 @@ class OAIServer():
     # def get_schema_location(self):
     #     return self.schemas[self.prefix]
     #
+    # def get_writer(self, prefix):
+    #     return OAILEXML(prefix)
+    #
     # # utilizado?
     # def listMetadataFormats(self, identifier=None):
     #     result = []
     #     for prefix in self.config['metadata_prefixes']:
-    #         writer = (lambda prefix_param: OAILEXML(prefix_param))(prefix)  # Get writer
+    #         writer = get_writer(prefix)
     #         ns = writer.get_namespace()
     #         schema = writer.get_schema_location()
     #         result.append((prefix, schema, ns))
@@ -98,8 +101,11 @@ class OAIServer():
             header, metadata = self.create_header_and_metadata(record)
             yield header, metadata, None  # NONE?????
 
+    def get_oai_id(self, internal_id):
+        return "oai:{}".format(internal_id)
+
     def create_header(self, record):
-        oai_id = (lambda internal_id: "oai:{}".format(internal_id))(record['record']['id'])  # Get OAI id
+        oai_id = self.get_oai_id(record['record']['id'])
         timestamp = record['record']['when_modified']
         timestamp = timestamp.replace(tzinfo=None)
         sets = []
@@ -123,14 +129,20 @@ class OAIServer():
     #         raise oaipmh.error.IdDoesNotExistError(identifier)
     #     return header, metadata, None
 
+    def get_internal_id(self, oai_id):
+        return int(oai_id.split('/').pop())
+
+    def get_internal_set_id(self, oai_setspec_id):
+        return oai_setspec_id[4:]
+
     def list_query(self, dataset=None, from_=None, until=None, cursor=0, batch_size=10, identifier=None):
         if identifier:
-            identifier = (lambda oai_id: int(oai_id.split('/').pop()))(identifier)  # Get internal id
+            identifier = self.get_internal_id(identifier)
         else:
             identifier = ''
 
         if dataset:
-            dataset = (lambda oai_setspec_id: oai_setspec_id[4:])(dataset)  # Get internal set id
+            dataset = self.get_internal_set_id(dataset)
 
         # TODO: verificar se a data eh UTC
         now = datetime.now()
@@ -144,11 +156,13 @@ class OAIServer():
                               until_date=until,
                               identifier=identifier)
 
+    def get_casa_legislativa(self):
+        return CasaLegislativa.objects.first()
+
     def monta_id(self, norma):
         """ Funcao que monta o id do objeto do LexML
         """
-
-        casa = (lambda: CasaLegislativa.objects.first())()  # Get casa legislativa
+        casa = self.get_casa_legislativa()
 
         if norma:
             num = len(casa.endereco_web.split('.'))
@@ -173,7 +187,7 @@ class OAIServer():
     def monta_urn(self, norma):
         """ Funcao que monta a URN do LexML
         """
-        casa = (lambda: CasaLegislativa.objects.first())()  # Get casa legislativa
+        casa = self.get_casa_legislativa()
         esfera = self.get_esfera_federacao()
 
         if norma:
@@ -307,7 +321,7 @@ class OAIServer():
     def monta_xml(self, urn, norma):
         # criacao do xml
 
-        casa = (lambda: CasaLegislativa.objects.first())()  # Get casa legislativa
+        casa = self.get_casa_legislativa()
 
         # consultas
         publicador = LexmlPublicador.objects.first()
@@ -418,7 +432,7 @@ def get_config(url):
     config = {}
     config['titulo'] = 'cocalzinho'  # self.get_nome_repositorio()
     config['email'] = 'camara@cocalzinho.gov'  # self.get_email()
-    config['base_url'] = (lambda url: url[:url.find('/', 8)])(url)  # Get base url
+    config['base_url'] = url[:url.find('/', 8)]  # Get base url
     config['metadata_prefixes'] = ['oai_lexml']
     config['descricao'] = 'ficticia'  # self.get_descricao_casa()
     config['batch_size'] = 10  # self.get_batch_size()
