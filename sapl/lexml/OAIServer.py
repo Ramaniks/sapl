@@ -64,6 +64,7 @@ class OAIServer():
             toolkit_description=False)
         if not self.config['descricao']:
             result.add_description(self.config['descricao'])
+
         return result
 
     # def get_namespace(self):
@@ -110,6 +111,7 @@ class OAIServer():
         timestamp = timestamp.replace(tzinfo=None)
         sets = []
         deleted = record['record']['deleted']
+
         return oaipmh.common.Header(None, oai_id, timestamp, sets, deleted)
 
     # def listIdentifiers(self, metadata_prefix, dataset=None, start=None, end=None, cursor=0, batch_size=10):
@@ -144,23 +146,18 @@ class OAIServer():
         if dataset:
             dataset = self.get_internal_set_id(dataset)
 
-        # TODO: verificar se a data eh UTC
+        # TODO: verificar se a data eh UTF
         now = datetime.now()
         # until nunca deve ser no futuro
         if not until or until > now:
             until = now
 
-        return self.oai_query(offset=cursor,
-                              batch_size=batch_size,
-                              from_date=from_,
-                              until_date=until,
+        return self.oai_query(offset=cursor, batch_size=batch_size, from_date=from_, until_date=until,
                               identifier=identifier)
 
-    def get_casa_legislativa(self):
-        return CasaLegislativa.objects.first()
-
     def monta_id(self, norma):
-        """ Funcao que monta o id do objeto do LexML
+        """
+            Função que monta o id do objeto do LexML
         """
         casa = self.get_casa_legislativa()
 
@@ -185,9 +182,10 @@ class OAIServer():
         return appconfig.esfera_federacao
 
     def monta_urn(self, norma):
-        """ Funcao que monta a URN do LexML
         """
-        casa = self.get_casa_legislativa()
+            Função que monta a URN do LexML
+        """
+        casa = get_casa_legislativa()
         esfera = self.get_esfera_federacao()
 
         if norma:
@@ -197,7 +195,6 @@ class OAIServer():
             urn = 'urn:lex:br;'
             esferas = {'M': 'municipal', 'E': 'estadual'}
 
-            # TODO: municipio e uf são a mesma coisa?
             municipio = casa.municipio.lower()
             for i in re.findall('\s', municipio):
                 municipio = municipio.replace(i, '.')
@@ -214,7 +211,7 @@ class OAIServer():
             if re.search('\.dos\.', municipio):
                 municipio = [municipio.replace(i, '.') for i in re.findall('\.dos\.', municipio)][0]
 
-            uf = casa.municipio.lower()
+            uf = casa.uf.lower()
             for i in re.findall('\s', uf):
                 uf = uf.replace(i, '.')
 
@@ -334,9 +331,8 @@ class OAIServer():
 
             oai_lexml = LEXML.LexML()
 
-            oai_lexml.attrib['{%s}schemaLocation' % self.XSI_NS] = '%s %s' % (
-                'http://www.lexml.gov.br/oai_lexml',
-                'http://projeto.lexml.gov.br/esquemas/oai_lexml.xsd')
+            oai_lexml.attrib['{%s}schemaLocation' % self.XSI_NS] = '{} {}'.format(
+                'http://www.lexml.gov.br/oai_lexml', 'http://projeto.lexml.gov.br/esquemas/oai_lexml.xsd')
 
             id_publicador = str(publicador.id_publicador)
 
@@ -349,8 +345,7 @@ class OAIServer():
                 epigrafe = '{} do Estado de {}, de {}'.format(norma.tipo.descricao, localidade, norma.ano)
             else:
                 epigrafe = '{} n° {},  de {}'.format(norma.tipo.descricao, norma.numero,
-                                                     self.data_converter_por_extenso_pysc(
-                                                         norma.data))  # TODO: pegar isso
+                                                     self.data_converter_por_extenso_pysc(norma.data))
 
             ementa = norma.ementa
             indexacao = norma.indexacao
@@ -384,38 +379,41 @@ class OAIServer():
 
             documento_individual = E.DocumentoIndividual(urn)
             oai_lexml.append(documento_individual)
-            oai_lexml.append(E.Epigrafe(epigrafe))  # TODO: epigrafe.decode('iso-8859-1')
-            oai_lexml.append(E.Ementa(ementa))  # TODO: ementa.decode('iso-8859-1')
+            oai_lexml.append(E.Epigrafe(epigrafe))
+            oai_lexml.append(E.Ementa(ementa))
+
             if indexacao:
-                oai_lexml.append(E.Indexacao(indexacao))  # TODO: indexacao.decode('iso-8859-1')
+                oai_lexml.append(E.Indexacao(indexacao))
+
             return etree.tostring(oai_lexml)
         else:
             return None
 
     def data_converter_por_extenso_pysc(self, data):
         """
-          Funcaoo: Converter a data do formato DD/MM/AAAA para
+            Função: Converter a data do formato DD/MM/AAAA para
                   o formato AAAA/MM/DD, e depois converter em dia da semana
                   Ex: sexta-feira.
 
-          Argumento: Data a ser convertida.
+            Argumento: Data a ser convertida.
 
-          Retorno: Dia da semana.
+            Retorno: Dia da semana.
         """
-
         meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro',
                  'Novembro', 'Dezembro']
         data = data.strftime('%d-%m-%Y')
         if data != '':
             mes = int(data[3:5])
+
             return data[0:2] + " de " + meses[int(mes - 1)] + " de " + data[6:]
         else:
             return ''
 
 
 def OAIServerFactory(config={}):
-    """Create a new OAI batching OAI Server given a config and
-    a database"""
+    """
+        Create a new OAI batching OAI Server given a config and a database
+    """
     for prefix in config['metadata_prefixes']:
         metadata_registry = oaipmh.metadata.MetadataRegistry()
         metadata_registry.registerWriter(prefix, OAILEXML(prefix))
