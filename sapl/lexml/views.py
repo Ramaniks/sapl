@@ -10,7 +10,7 @@ LexmlPublicadorCrud = CrudAux.build(LexmlPublicador, 'lexml_publicador')
 
 
 def lexml_request(request):
-    config = get_config(request.get_raw_uri())  # Passa toda a url
+    config = get_config(request.get_raw_uri(), int(request.GET.get('batch_size', 10)))
     oai_server = OAIServerFactory(config)
     r = oai_server.handleRequest({'verb': 'ListRecords',
                                   'metadataPrefix': 'oai_lexml'

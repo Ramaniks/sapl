@@ -9,7 +9,7 @@ from django.urls import reverse
 from lxml import etree
 from lxml.builder import ElementMaker
 
-from sapl.base.models import CasaLegislativa, AppConfig
+from sapl.base.models import AppConfig, CasaLegislativa
 from sapl.lexml.models import LexmlPublicador
 from sapl.norma.models import NormaJuridica
 
@@ -159,7 +159,7 @@ class OAIServer():
         """
             Função que monta o id do objeto do LexML
         """
-        casa = self.get_casa_legislativa()
+        casa = get_casa_legislativa()
 
         if norma:
             num = len(casa.endereco_web.split('.'))
@@ -318,7 +318,7 @@ class OAIServer():
     def monta_xml(self, urn, norma):
         # criacao do xml
 
-        casa = self.get_casa_legislativa()
+        casa = get_casa_legislativa()
 
         # consultas
         publicador = LexmlPublicador.objects.first()
@@ -425,18 +425,30 @@ def OAIServerFactory(config={}):
     )
 
 
-# TODO: RECUPERAR DA BASE DE DADOS
-def get_config(url):
-    config = {}
-    config['titulo'] = 'cocalzinho'  # self.get_nome_repositorio()
-    config['email'] = 'camara@cocalzinho.gov'  # self.get_email()
-    config['base_url'] = url[:url.find('/', 8)]  # Get base url
-    config['metadata_prefixes'] = ['oai_lexml']
-    config['descricao'] = 'ficticia'  # self.get_descricao_casa()
-    config['batch_size'] = 10  # self.get_batch_size()
-    config['content_type'] = None,
-    config['delay'] = 0,
-    config['base_asset_path'] = None
+def get_casa_legislativa():
+    return CasaLegislativa.objects.first()
+
+
+def get_nome_repositorio():
+    return get_casa_legislativa().nome
+
+
+def get_email():
+    return get_casa_legislativa().email
+
+
+def get_descricao_casa():
+    return get_casa_legislativa().informacao_geral
+
+
+def get_config(url, batch_size):
+    config = {'content_type': None, 'delay': 0, 'base_asset_path': None, 'metadata_prefixes': ['oai_lexml']}
+    config['titulo'] = get_nome_repositorio()
+    config['email'] = get_email()
+    config['base_url'] = url[:url.find('/', 8)]
+    config['descricao'] = get_descricao_casa()
+    config['batch_size'] = batch_size
+
     return config
 
 
