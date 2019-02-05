@@ -31,21 +31,6 @@ class OAILEXML():
         element.append(value)
 
 
-def recupera_norma(offset, batch_size, from_date, until_date, identifier, esfera):
-    kwargs = {'data__lte': until_date}
-
-    if from_date:
-        kwargs['data__gte'] = from_date
-
-    if identifier:
-        kwargs['numero'] = identifier
-
-    if esfera:
-        kwargs['esfera_federacao'] = esfera
-
-    return NormaJuridica.objects.select_related('tipo').filter(**kwargs)[offset:offset + batch_size]
-
-
 class OAIServer():
     """
         An OAI-2.0 compliant oai server.
@@ -97,15 +82,15 @@ class OAIServer():
     #         result.append((prefix, schema, ns))
     #     return result
 
-    # utilizado?
-    def listMetadataFormats(self, identifier=None):
-        result = []
-        for prefix in self.config['metadata_prefixes']:
-            writer = self.get_writer(prefix)
-            ns = writer.get_namespace()
-            schema = writer.get_schema_location()
-            result.append((prefix, schema, ns))
-        return result
+    def check_metadata_prefix(self, metadata_prefix):
+        if not metadata_prefix in self.config['metadata_prefixes']:
+            raise oaipmh.error.CannotDisseminateFormatError
+
+    def create_header_and_metadata(self, record):
+        header = self.create_header(record)
+        metadata = oaipmh.common.Metadata(None, record['metadata'])
+        metadata.record = record
+        return header, metadata
 
     def listRecords(self, metadataPrefix, set=None, from_=None, until=None, cursor=0, batch_size=10):
         self.check_metadata_prefix(metadataPrefix)
@@ -121,32 +106,22 @@ class OAIServer():
         deleted = record['record']['deleted']
         return oaipmh.common.Header(None, oai_id, timestamp, sets, deleted)
 
-    def listIdentifiers(self, metadata_prefix, dataset=None, start=None, end=None, cursor=0, batch_size=10):
-        self.check_metadata_prefix(metadata_prefix)
-        for record in self.list_query(dataset, start, end, cursor, batch_size):
-            yield self.create_header(record)
+    # def listIdentifiers(self, metadata_prefix, dataset=None, start=None, end=None, cursor=0, batch_size=10):
+    #     self.check_metadata_prefix(metadata_prefix)
+    #     for record in self.list_query(dataset, start, end, cursor, batch_size):
+    #         yield self.create_header(record)
 
-    def getRecord(self, metadata_prefix, identifier):
-        header = None
-        metadata = None
-        self.check_metadata_prefix(metadata_prefix)
-        for record in self.list_query(identifier=identifier):
-            header, metadata = self.create_header_and_metadata(record)
-
-        # pega o ultimo header??????
-        if not header:
-            raise oaipmh.error.IdDoesNotExistError(identifier)
-        return header, metadata, None
-
-    def check_metadata_prefix(self, metadata_prefix):
-        if not metadata_prefix in self.config['metadata_prefixes']:
-            raise oaipmh.error.CannotDisseminateFormatError
-
-    def create_header_and_metadata(self, record):
-        header = self.create_header(record)
-        metadata = oaipmh.common.Metadata(None, record['metadata'])
-        metadata.record = record
-        return header, metadata
+    # def getRecord(self, metadata_prefix, identifier):
+    #     header = None
+    #     metadata = None
+    #     self.check_metadata_prefix(metadata_prefix)
+    #     for record in self.list_query(identifier=identifier):
+    #         header, metadata = self.create_header_and_metadata(record)
+    #
+    #     # pega o ultimo header??????
+    #     if not header:
+    #         raise oaipmh.error.IdDoesNotExistError(identifier)
+    #     return header, metadata, None
 
     def list_query(self, dataset=None, from_=None, until=None, cursor=0, batch_size=10, identifier=None):
         if identifier:
@@ -176,10 +151,8 @@ class OAIServer():
         casa = (lambda: CasaLegislativa.objects.first())()  # Get casa legislativa
 
         if norma:
-            end_web_casa = casa.endereco_web
-            sgl_casa = casa.sigla.lower()
-            num = len(end_web_casa.split('.'))
-            dominio = '.'.join(end_web_casa.split('.')[1:num])
+            num = len(casa.endereco_web.split('.'))
+            dominio = '.'.join(casa.endereco_web.split('.')[1:num])
 
             prefixo_oai = '{}.{}:sapl/'.format(casa.sigla.lower(), dominio)
             numero_interno = norma.numero
@@ -284,11 +257,24 @@ class OAIServer():
         else:
             return None
 
-    def oai_query(self, offset=0, batch_size=20, from_date=None, until_date=None, identifier=None):
+    def recupera_norma(self, offset, batch_size, from_date, until_date, identifier, esfera):
+        kwargs = {'data__lte': until_date}
 
+        if from_date:
+            kwargs['data__gte'] = from_date
+
+        if identifier:
+            kwargs['numero'] = identifier
+
+        if esfera:
+            kwargs['esfera_federacao'] = esfera
+
+        return NormaJuridica.objects.select_related('tipo').filter(**kwargs)[offset:offset + batch_size]
+
+    def oai_query(self, offset=0, batch_size=10, from_date=None, until_date=None, identifier=None):
         esfera = self.get_esfera_federacao()
         offset = 0 if offset < 0 else offset
-        batch_size = 20 if batch_size < 0 else batch_size
+        batch_size = 10 if batch_size < 0 else batch_size
         until_date = datetime.now() if not until_date or until_date > datetime.now() else until_date
 
         normas = self.recupera_norma(offset, batch_size, from_date, until_date, identifier, esfera)
