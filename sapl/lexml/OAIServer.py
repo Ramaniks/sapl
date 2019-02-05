@@ -25,13 +25,6 @@ class OAILEXML():
         self.ns = {'oai_lexml': 'http://www.lexml.gov.br/oai_lexml', }
         self.schemas = {'oai_lexml': 'http://projeto.lexml.gov.br/esquemas/oai_lexml.xsd'}
 
-    def get_namespace(self):
-        return self.ns[self.prefix]
-
-    def get_schema_location(self):
-        return self.schemas[self.prefix]
-
-    # utilizado?????
     def __call__(self, element, metadata):
         data = metadata.record
         value = etree.XML(data['metadata'])
@@ -66,17 +59,7 @@ class OAIServer():
     def __init__(self, config={}):
         self.config = config
 
-    def get_oai_id(self, internal_id):
-        return "oai:{}".format(internal_id)
-
-    # verificar
-    def get_internal_id(self, oai_id):
-        return int(oai_id.split('/').pop())
-
-    def get_internal_set_id(self, oai_setspec_id):
-        return oai_setspec_id[4:]
-
-    # # utilizado?
+    # utilizado?
     # def get_asset_path(self, internal_id, asset):
     #     return os.path.abspath(
     #         os.path.join(self.base_asset_path,
@@ -99,8 +82,21 @@ class OAIServer():
             result.add_description(self.config['descricao'])
         return result
 
-    def get_writer(self, prefix):
-        return OAILEXML(prefix)
+    # def get_namespace(self):
+    #     return self.ns[self.prefix]
+    #
+    # def get_schema_location(self):
+    #     return self.schemas[self.prefix]
+    #
+    # # utilizado?
+    # def listMetadataFormats(self, identifier=None):
+    #     result = []
+    #     for prefix in self.config['metadata_prefixes']:
+    #         writer = (lambda prefix_param: OAILEXML(prefix_param))(prefix)  # Get writer
+    #         ns = writer.get_namespace()
+    #         schema = writer.get_schema_location()
+    #         result.append((prefix, schema, ns))
+    #     return result
 
     # utilizado?
     def listMetadataFormats(self, identifier=None):
@@ -119,7 +115,7 @@ class OAIServer():
             yield header, metadata, None  # NONE?????
 
     def create_header(self, record):
-        oai_id = self.get_oai_id(record['record']['id'])
+        oai_id = (lambda internal_id: "oai:{}".format(internal_id))(record['record']['id'])  # Get OAI id
         timestamp = record['record']['when_modified']
         timestamp = timestamp.replace(tzinfo=None)
         sets = []
@@ -155,11 +151,11 @@ class OAIServer():
 
     def list_query(self, dataset=None, from_=None, until=None, cursor=0, batch_size=10, identifier=None):
         if identifier:
-            identifier = self.get_internal_id(identifier)
+            identifier = (lambda oai_id: int(oai_id.split('/').pop()))(identifier)  # Get internal id
         else:
             identifier = ''
         if dataset:
-            dataset = self.get_internal_set_id(dataset)
+            dataset = (lambda oai_setspec_id: oai_setspec_id[4:])(dataset)  # Get internal set id
 
         # TODO: verificar se a data eh UTC
         now = datetime.now()
@@ -173,14 +169,11 @@ class OAIServer():
                               until_date=until,
                               identifier=identifier)
 
-    def get_casa_legislativa(self):
-        return CasaLegislativa.objects.first()
-
     def monta_id(self, norma):
         """ Funcao que monta o id do objeto do LexML
         """
 
-        casa = self.get_casa_legislativa()
+        casa = (lambda: CasaLegislativa.objects.first())()  # Get casa legislativa
 
         if norma:
             end_web_casa = casa.endereco_web
@@ -206,7 +199,7 @@ class OAIServer():
     def monta_urn(self, norma):
         """ Funcao que monta a URN do LexML
         """
-        casa = self.get_casa_legislativa()
+        casa = (lambda: CasaLegislativa.objects.first())()  # Get casa legislativa
         esfera = self.get_esfera_federacao()
 
         if norma:
@@ -297,7 +290,7 @@ class OAIServer():
         batch_size = 20 if batch_size < 0 else batch_size
         until_date = datetime.now() if not until_date or until_date > datetime.now() else until_date
 
-        normas = recupera_norma(offset, batch_size, from_date, until_date, identifier, esfera)
+        normas = self.recupera_norma(offset, batch_size, from_date, until_date, identifier, esfera)
 
         for norma in normas:
             resultado = {}
@@ -327,7 +320,7 @@ class OAIServer():
     def monta_xml(self, urn, norma):
         # criacao do xml
 
-        casa = self.get_casa_legislativa()
+        casa = (lambda: CasaLegislativa.objects.first())()  # Get casa legislativa
 
         # consultas
         publicador = LexmlPublicador.objects.first()
@@ -434,19 +427,13 @@ def OAIServerFactory(config={}):
     )
 
 
-def get_base_url(url):
-    base_url = url[:url.find('/', 8)]
-
-    return base_url
-
-
 # TODO: RECUPERAR DA BASE DE DADOS
 def get_config(url):
     config = {}
     config['titulo'] = 'cocalzinho'  # self.get_nome_repositorio()
     config['email'] = 'camara@cocalzinho.gov'  # self.get_email()
-    config['base_url'] = get_base_url(url)
-    config['metadata_prefixes'] = ['oai_lexml', ]
+    config['base_url'] = (lambda url: url[:url.find('/', 8)])(url)  # Get base url
+    config['metadata_prefixes'] = ['oai_lexml']
     config['descricao'] = 'ficticia'  # self.get_descricao_casa()
     config['batch_size'] = 10  # self.get_batch_size()
     config['content_type'] = None,
