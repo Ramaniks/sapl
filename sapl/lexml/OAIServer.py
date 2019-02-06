@@ -181,19 +181,12 @@ class OAIServer():
         return appconfig.esfera_federacao
 
     def monta_urn(self, norma):
-        """
-            Função que monta a URN do LexML
-        """
         casa = get_casa_legislativa()
         esfera = self.get_esfera_federacao()
 
         if norma:
-            url = self.config['base_url'] + reverse('sapl.norma:normajuridica_detail', kwargs={'pk': norma.numero})
-            # url = self.portal_url() + '/consultas/norma_juridica/norma_juridica_mostrar_proc?cod_norma=' + str(numero)
-
             urn = 'urn:lex:br;'
             esferas = {'M': 'municipal', 'E': 'estadual'}
-
             municipio = casa.municipio.lower()
             uf = casa.uf.lower()
 
@@ -202,22 +195,21 @@ class OAIServer():
                 uf = uf.replace(x, '.')
 
             if esfera == 'M':
-                urn += uf + ';'
-                urn += municipio + ':'
+                urn += '{};{}:'.format(uf, municipio)
 
                 if norma.tipo.equivalente_lexml == 'regimento.interno' or norma.tipo.equivalente_lexml == 'resolucao':
-                    urn += 'camara.municipal:'
-                else:
-                    urn += esferas[esfera] + ':'
-            elif esfera == 'E':
-                urn += uf + ':'
+                    urn += 'camara.'
+
                 urn += esferas[esfera] + ':'
+            elif esfera == 'E':
+                urn += '{}:{}:'.format(uf, esferas[esfera])
             else:
                 urn += ':'
 
-            urn += norma.tipo.equivalente_lexml + ':'
-
-            urn += norma.data.isoformat() + ';'
+            if norma.tipo.equivalente_lexml:
+                urn += '{}:{};'.format(norma.tipo.equivalente_lexml, norma.data.isoformat())
+            else:
+                urn += '{};'.format(norma.data.isoformat())
 
             if norma.tipo.equivalente_lexml == 'lei.organica' or norma.tipo.equivalente_lexml == 'constituicao':
                 urn += norma.ano
@@ -225,18 +217,9 @@ class OAIServer():
                 urn += norma.numero
 
             if norma.data_vigencia and norma.data_publicacao:
-                urn += '@'
-                urn += norma.data_vigencia.isoformat()
-                urn += ';publicacao;'
-                urn += norma.data_publicacao.isoformat()
+                urn += '@{};publicacao;{}'.format(norma.data_vigencia.isoformat(), norma.data_publicacao.isoformat())
             elif norma.data_publicacao:
-                urn += '@'
-                urn += 'inicio.vigencia;publicacao;' + norma.data_publicacao.isoformat()
-            #            else:
-            #                urn += 'inicio.vigencia;publicacao;'
-            #
-            #            if norma.data_publicacao:
-            #                urn += norma.data_publicacao.isoformat()
+                urn += '@inicio.vigencia;publicacao;{}'.format(norma.data_publicacao.isoformat())
 
             return urn
         else:
@@ -305,7 +288,7 @@ class OAIServer():
 
             oai_lexml = LEXML.LexML()
 
-            oai_lexml.attrib['{%s}schemaLocation' % self.XSI_NS] = '{} {}'.format(
+            oai_lexml.attrib['{{}}schemaLocation'.format(self.XSI_NS)] = '{} {}'.format(
                 'http://www.lexml.gov.br/oai_lexml', 'http://projeto.lexml.gov.br/esquemas/oai_lexml.xsd')
 
             id_publicador = str(publicador.id_publicador)
@@ -435,7 +418,7 @@ if __name__ == '__main__':
         Executar comando        
         %run sapl/lexml/OAIServer.py
     """
-    oai_server = OAIServerFactory(get_config('http://127.0.0.1:8000/'))
+    oai_server = OAIServerFactory(get_config('http://127.0.0.1:8000/', 10))
     r = oai_server.handleRequest({'verb': 'ListRecords',
                                   'metadataPrefix': 'oai_lexml'
                                   })
