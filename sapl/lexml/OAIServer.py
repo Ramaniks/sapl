@@ -1,4 +1,3 @@
-import re
 from datetime import datetime
 
 import oaipmh
@@ -196,36 +195,11 @@ class OAIServer():
             esferas = {'M': 'municipal', 'E': 'estadual'}
 
             municipio = casa.municipio.lower()
-            for i in re.findall('\s', municipio):
-                municipio = municipio.replace(i, '.')
-
-            # solucao temporaria
-            if re.search('\.de\.', municipio):
-                municipio = [municipio.replace(i, '.') for i in re.findall('\.de\.', municipio)][0]
-            if re.search('\.da\.', municipio):
-                municipio = [municipio.replace(i, '.') for i in re.findall('\.da\.', municipio)][0]
-            if re.search('\.das\.', municipio):
-                municipio = [municipio.replace(i, '.') for i in re.findall('\.das\.', municipio)][0]
-            if re.search('\.do\.', municipio):
-                municipio = [municipio.replace(i, '.') for i in re.findall('\.do\.', municipio)][0]
-            if re.search('\.dos\.', municipio):
-                municipio = [municipio.replace(i, '.') for i in re.findall('\.dos\.', municipio)][0]
-
             uf = casa.uf.lower()
-            for i in re.findall('\s', uf):
-                uf = uf.replace(i, '.')
 
-            # solucao temporaria
-            if re.search('\.de\.', uf):
-                uf = [uf.replace(i, '.') for i in re.findall('\.de\.', uf)][0]
-            if re.search('\.da\.', uf):
-                uf = [uf.replace(i, '.') for i in re.findall('\.da\.', uf)][0]
-            if re.search('\.das\.', uf):
-                uf = [uf.replace(i, '.') for i in re.findall('\.das\.', uf)][0]
-            if re.search('\.do\.', uf):
-                uf = [uf.replace(i, '.') for i in re.findall('\.do\.', uf)][0]
-            if re.search('\.dos\.', uf):
-                uf = [uf.replace(i, '.') for i in re.findall('\.dos\.', uf)][0]
+            for x in [' ', '.de.', '.da.', '.das.', '.do.', '.dos.']:
+                municipio = municipio.replace(x, '.')
+                uf = uf.replace(x, '.')
 
             if esfera == 'M':
                 urn += uf + ';'
