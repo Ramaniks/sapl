@@ -272,6 +272,16 @@ class OAIServer():
                    #                   'assets':{}
                    }
 
+    def data_por_extenso(self, data):
+        data = data.strftime('%d-%m-%Y')
+        if data != '':
+            meses = {1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril', 5: 'Maio', 6: 'Junho', 7: 'Julho',
+                     8: 'Agosto', 9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'}
+
+            return '{} de {} de {}'.format(data[0:2], meses[int(data[3:5])], data[6:])
+        else:
+            return ''
+
     def monta_xml(self, urn, norma):
         # criacao do xml
 
@@ -301,8 +311,8 @@ class OAIServer():
             elif norma.tipo.equivalente_lexml == 'constituicao':
                 epigrafe = '{} do Estado de {}, de {}'.format(norma.tipo.descricao, localidade, norma.ano)
             else:
-                epigrafe = '{} n° {},  de {}'.format(norma.tipo.descricao, norma.numero,
-                                                     self.data_converter_por_extenso_pysc(norma.data))
+                epigrafe = '{} n° {}, de {}'.format(norma.tipo.descricao, norma.numero,
+                                                    self.data_por_extenso(norma.data))
 
             ementa = norma.ementa
             indexacao = norma.indexacao
@@ -345,26 +355,6 @@ class OAIServer():
             return etree.tostring(oai_lexml)
         else:
             return None
-
-    def data_converter_por_extenso_pysc(self, data):
-        """
-            Função: Converter a data do formato DD/MM/AAAA para
-                  o formato AAAA/MM/DD, e depois converter em dia da semana
-                  Ex: sexta-feira.
-
-            Argumento: Data a ser convertida.
-
-            Retorno: Dia da semana.
-        """
-        meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro',
-                 'Novembro', 'Dezembro']
-        data = data.strftime('%d-%m-%Y')
-        if data != '':
-            mes = int(data[3:5])
-
-            return data[0:2] + " de " + meses[int(mes - 1)] + " de " + data[6:]
-        else:
-            return ''
 
 
 def OAIServerFactory(config={}):
